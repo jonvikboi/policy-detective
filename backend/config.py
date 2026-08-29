@@ -10,7 +10,10 @@ class Settings(BaseSettings):
     llm_model: str = "qwen/qwen3.6-27b"
     llm_provider: str = "groq"
 
-    # Database
+    # Database (MongoDB / SQLite)
+    database_type: str = "mongodb"
+    mongodb_uri: str = "mongodb://localhost:27017"
+    mongodb_db_name: str = "policy_detective"
     database_url: str = "sqlite+aiosqlite:///./policy_detective.db"
 
     # Server
