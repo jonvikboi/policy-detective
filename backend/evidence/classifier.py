@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 KNOWN_ANALYTICS: set[str] = {
     "google-analytics.com", "analytics.google.com", "www.google-analytics.com",
-    "stats.g.doubleclick.net", "ssl.google-analytics.com",
+    "ssl.google-analytics.com",
     "hotjar.com", "static.hotjar.com", "script.hotjar.com",
     "mixpanel.com", "api.mixpanel.com", "cdn.mxpnl.com",
     "segment.com", "cdn.segment.com", "api.segment.io",

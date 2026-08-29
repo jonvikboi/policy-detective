@@ -138,6 +138,10 @@ class WebCMDAdapter:
         logger.info(f"Closed WebCMD session: {session_id}")
         return result
 
+    async def get_version(self) -> WebCMDResult:
+        """Get the WebCMD CLI version."""
+        return await self._run_command(["--version"])
+
     async def list_sessions(self) -> WebCMDResult:
         """List active browser sessions."""
         return await self._run_command(["session", "list", "-f", "json"])
