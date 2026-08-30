@@ -539,78 +539,78 @@ class AgentController:
             started_at=datetime.now(timezone.utc),
         )
         db.add(experiment)
-        await db.commit()
+        session_id = None
+        try:
+            # Create fresh browser session (isolation!)
+            session_result = await self.webcmd.create_session()
+            result_data = {}
 
-        # Create fresh browser session (isolation!)
-        session_result = await self.webcmd.create_session()
-        result_data = {}
+            if session_result.success:
+                session_id = session_result.data.get("id", "")
+                experiment.webcmd_session_id = session_id
+                state.sessions[experiment_state.value] = session_id
+                await db.commit()
 
-        if session_result.success:
-            session_id = session_result.data.get("id", "")
-            experiment.webcmd_session_id = session_id
-            state.sessions[experiment_state.value] = session_id
-            await db.commit()
+                try:
+                    # Navigate and capture network + cookies
+                    evidence_result = await self.webcmd.capture_network_and_cookies(
+                        session_id, state.url, wait_seconds=5
+                    )
 
-            try:
-                # Navigate and capture network + cookies
-                evidence_result = await self.webcmd.capture_network_and_cookies(
-                    session_id, state.url, wait_seconds=5
-                )
+                    if evidence_result.success:
+                        result_data = evidence_result.data
+                        if isinstance(result_data, str):
+                            try:
+                                result_data = json.loads(result_data)
+                            except Exception:
+                                result_data = {}
+                        if isinstance(result_data, dict) and "result" in result_data:
+                            result_data = result_data["result"]
+                        if isinstance(result_data, str):
+                            try:
+                                result_data = json.loads(result_data)
+                            except Exception:
+                                result_data = {}
+                except Exception as e:
+                    logger.warning(f"WebCMD evidence capture exception: {e}")
 
-                if evidence_result.success:
-                    result_data = evidence_result.data
-                    if isinstance(result_data, str):
-                        try:
-                            result_data = json.loads(result_data)
-                        except Exception:
-                            result_data = {}
-                    if isinstance(result_data, dict) and "result" in result_data:
-                        result_data = result_data["result"]
-                    if isinstance(result_data, str):
-                        try:
-                            result_data = json.loads(result_data)
-                        except Exception:
-                            result_data = {}
-            except Exception as e:
-                logger.warning(f"WebCMD evidence capture exception: {e}")
+            # Fallback if WebCMD browser session failed or is unavailable in container
+            if not result_data or not isinstance(result_data, dict):
+                logger.info(f"[{state.scan_id}] Using HTTP network & tracker audit fallback for {experiment_state.value}")
+                raw_cookies = []
+                raw_requests = []
+                try:
+                    import httpx
+                    import re
+                    async with httpx.AsyncClient(timeout=12.0, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}) as client:
+                        resp = await client.get(state.url)
+                        for k, v in resp.cookies.items():
+                            raw_cookies.append({
+                                "name": k,
+                                "domain": state.domain,
+                                "path": "/",
+                                "secure": False,
+                                "httpOnly": False,
+                                "sameSite": "Lax",
+                            })
+                        script_srcs = re.findall(r'<script[^>]+src=["\']([^"\']+)["\']', resp.text, re.IGNORECASE)
+                        img_srcs = re.findall(r'<img[^>]+src=["\']([^"\']+)["\']', resp.text, re.IGNORECASE)
+                        link_srcs = re.findall(r'<link[^>]+href=["\']([^"\']+)["\']', resp.text, re.IGNORECASE)
+                        for src in (script_srcs + img_srcs + link_srcs)[:60]:
+                            full_req_url = urljoin(state.url, src)
+                            raw_requests.append({
+                                "url": full_req_url,
+                                "method": "GET",
+                                "resourceType": "script" if src in script_srcs else "image",
+                            })
+                except Exception as e:
+                    logger.warning(f"HTTP audit fallback notice: {e}")
 
-        # Fallback if WebCMD browser session failed or is unavailable in container
-        if not result_data or not isinstance(result_data, dict):
-            logger.info(f"[{state.scan_id}] Using HTTP network & tracker audit fallback for {experiment_state.value}")
-            raw_cookies = []
-            raw_requests = []
-            try:
-                import httpx
-                import re
-                async with httpx.AsyncClient(timeout=12.0, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}) as client:
-                    resp = await client.get(state.url)
-                    for k, v in resp.cookies.items():
-                        raw_cookies.append({
-                            "name": k,
-                            "domain": state.domain,
-                            "path": "/",
-                            "secure": False,
-                            "httpOnly": False,
-                            "sameSite": "Lax",
-                        })
-                    script_srcs = re.findall(r'<script[^>]+src=["\']([^"\']+)["\']', resp.text, re.IGNORECASE)
-                    img_srcs = re.findall(r'<img[^>]+src=["\']([^"\']+)["\']', resp.text, re.IGNORECASE)
-                    link_srcs = re.findall(r'<link[^>]+href=["\']([^"\']+)["\']', resp.text, re.IGNORECASE)
-                    for src in (script_srcs + img_srcs + link_srcs)[:60]:
-                        full_req_url = urljoin(state.url, src)
-                        raw_requests.append({
-                            "url": full_req_url,
-                            "method": "GET",
-                            "resourceType": "script" if src in script_srcs else "image",
-                        })
-            except Exception as e:
-                logger.warning(f"HTTP audit fallback notice: {e}")
-
-            result_data = {
-                "page": {"url": state.url, "title": f"{state.domain} Page"},
-                "cookies": raw_cookies,
-                "requests": raw_requests,
-            }
+                result_data = {
+                    "page": {"url": state.url, "title": f"{state.domain} Page"},
+                    "cookies": raw_cookies,
+                    "requests": raw_requests,
+                }
 
             page_info = result_data.get("page", {}) if isinstance(result_data, dict) else {}
             if not isinstance(page_info, dict):
