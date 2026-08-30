@@ -303,8 +303,12 @@ page.on('response', response => {{
     }});
 }});
 
-// Navigate
-await page.goto({json.dumps(url)}, {{ waitUntil: 'networkidle', timeout: 30000 }});
+// Navigate with domcontentloaded
+try {{
+    await page.goto({json.dumps(url)}, {{ waitUntil: 'domcontentloaded', timeout: 20000 }});
+}} catch (e) {{
+    // Continue collecting evidence even if background assets take longer
+}}
 
 // Wait for additional async requests
 await page.waitForTimeout({wait_seconds * 1000});
