@@ -50,8 +50,14 @@ class WebCMDAdapter:
 
     def __init__(self):
         settings = get_settings()
-        # Resolve full binary path (e.g. finds webcmd.CMD on Windows)
-        resolved = shutil.which(settings.webcmd_binary)
+        # Resolve full binary path (finds global PATH, node_modules/.bin, or Windows CMD)
+        local_bin_1 = os.path.abspath(os.path.join("node_modules", ".bin", "webcmd"))
+        local_bin_2 = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "node_modules", ".bin", "webcmd"))
+        resolved = (
+            shutil.which(settings.webcmd_binary)
+            or (local_bin_1 if os.path.exists(local_bin_1) else None)
+            or (local_bin_2 if os.path.exists(local_bin_2) else None)
+        )
         self.binary = resolved or settings.webcmd_binary
         self.profile = settings.webcmd_profile
         self.timeout = settings.webcmd_timeout
