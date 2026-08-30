@@ -70,6 +70,10 @@ class WebCMDAdapter:
     ) -> WebCMDResult:
         """Execute a webcmd command and return parsed result."""
         cmd = [self.binary] + args
+        # On Windows, wrap .cmd and .bat files with cmd.exe /c for bulletproof subprocess execution
+        if os.name == "nt" and (self.binary.lower().endswith(".cmd") or self.binary.lower().endswith(".bat")):
+            cmd = ["cmd.exe", "/c", self.binary] + args
+
         effective_timeout = timeout or self.timeout
         cmd_str = " ".join(cmd)
         logger.info(f"WebCMD: {cmd_str}")
@@ -122,8 +126,8 @@ class WebCMDAdapter:
             logger.error(f"WebCMD binary not found: {self.binary}")
             return WebCMDResult(success=False, error=f"WebCMD binary not found: {self.binary}")
         except Exception as e:
-            logger.error(f"WebCMD error: {e}")
-            return WebCMDResult(success=False, error=str(e))
+            logger.error(f"WebCMD error ({type(e).__name__}): {repr(e)}", exc_info=True)
+            return WebCMDResult(success=False, error=str(e) or repr(e))
 
     # --- Session Management ---
 
