@@ -77,9 +77,9 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStartScan, isLoading
         {/* URL Input Form */}
         <div className="max-w-2xl mx-auto pt-4">
           <form onSubmit={handleSubmit} className="relative">
-            <div className="glass-panel rounded-2xl p-2 sm:p-2.5 shadow-2xl flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 border border-slate-700/60 focus-within:border-brand-500/80 transition-all">
+            <div className="glass-panel rounded-2xl p-2.5 sm:p-3 shadow-2xl flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 border border-slate-700/80 focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-400/20 transition-all bg-slate-900/90">
               <div className="flex items-center pl-3 w-full sm:w-auto flex-1">
-                <Globe className="w-5 h-5 text-slate-400 mr-3 flex-shrink-0" />
+                <Globe className="w-5 h-5 text-emerald-400 mr-3 flex-shrink-0" />
                 <input
                   type="text"
                   value={url}
@@ -88,14 +88,14 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStartScan, isLoading
                     if (validationError) setValidationError(null);
                   }}
                   placeholder="Enter website URL (e.g., https://nytimes.com)"
-                  className="w-full bg-transparent text-white placeholder-slate-500 focus:outline-none text-sm sm:text-base"
+                  className="w-full bg-transparent text-white placeholder-slate-400 focus:outline-none text-sm sm:text-base font-medium"
                   disabled={isLoading}
                 />
               </div>
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-400 hover:to-brand-500 text-slate-950 font-bold text-sm flex items-center justify-center space-x-2 shadow-lg shadow-brand-500/25 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 font-extrabold text-sm flex items-center justify-center space-x-2 shadow-lg shadow-emerald-500/30 transition-all duration-200 border border-emerald-300/40 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
               >
                 {isLoading ? (
                   <>
@@ -105,7 +105,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStartScan, isLoading
                 ) : (
                   <>
                     <span>Investigate Website</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-4 h-4 text-slate-950 stroke-[2.5]" />
                   </>
                 )}
               </button>

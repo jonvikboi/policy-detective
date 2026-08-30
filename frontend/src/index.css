@@ -1,4 +1,28 @@
 @import "tailwindcss";
+@config "../tailwind.config.js";
+
+@theme {
+  --color-brand-50: #f0fdf4;
+  --color-brand-100: #dcfce7;
+  --color-brand-200: #bbf7d0;
+  --color-brand-300: #86efac;
+  --color-brand-400: #4ade80;
+  --color-brand-500: #22c55e;
+  --color-brand-600: #16a34a;
+  --color-brand-700: #15803d;
+  --color-brand-800: #166534;
+  --color-brand-900: #14532d;
+  --color-brand-950: #052e16;
+
+  --color-slate-850: #151f32;
+  --color-slate-900: #0f172a;
+  --color-slate-950: #080d1a;
+
+  --color-accent-blue: #38bdf8;
+  --color-accent-purple: #a855f7;
+  --color-accent-amber: #f59e0b;
+  --color-accent-rose: #f43f5e;
+}
 
 @layer base {
   body {
@@ -11,19 +35,19 @@
 
 /* Glassmorphism card utility */
 .glass-panel {
-  background: rgba(15, 23, 42, 0.75);
+  background: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .glass-panel-hover {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .glass-panel-hover:hover {
-  background: rgba(21, 31, 50, 0.85);
-  border-color: rgba(74, 222, 128, 0.25);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), 0 0 20px -5px rgba(34, 197, 94, 0.15);
+  background: rgba(21, 31, 50, 0.95);
+  border-color: rgba(74, 222, 128, 0.35);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6), 0 0 20px -5px rgba(34, 197, 94, 0.2);
 }
 
 .gradient-text {
@@ -33,7 +57,22 @@
 }
 
 .glow-brand {
-  box-shadow: 0 0 35px -5px rgba(34, 197, 94, 0.25);
+  box-shadow: 0 0 35px -5px rgba(34, 197, 94, 0.3);
+}
+
+/* Primary Action Buttons */
+.btn-primary {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: #022c22 !important;
+  font-weight: 700;
+  border: 1px solid rgba(74, 222, 128, 0.5);
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.3);
+  transition: all 0.2s ease-in-out;
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.45);
+  transform: translateY(-1px);
 }
 
 /* Custom modern scrollbars */
