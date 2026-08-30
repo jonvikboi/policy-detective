@@ -45,10 +45,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow frontend dev server
+# CORS — allow frontend dev server and production deployments (Vercel)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -56,6 +56,23 @@ app.add_middleware(
 
 # Register API routes
 app.include_router(router)
+
+
+@app.get("/")
+async def root():
+    """Root endpoint providing service status and documentation links."""
+    return {
+        "name": "Policy Detective API",
+        "status": "online",
+        "documentation": "/docs",
+        "health": "/health",
+        "endpoints": {
+            "create_scan": "POST /api/scans",
+            "get_scan": "GET /api/scans/{scan_id}",
+            "get_report": "GET /api/scans/{scan_id}/report",
+            "stream_events": "GET /api/scans/{scan_id}/events",
+        },
+    }
 
 
 @app.get("/health")
