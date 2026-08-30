@@ -79,23 +79,39 @@ class WebCMDAdapter:
         logger.info(f"WebCMD: {cmd_str}")
 
         try:
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdin=asyncio.subprocess.PIPE if stdin_data else None,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdin=asyncio.subprocess.PIPE if stdin_data else None,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
 
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(input=stdin_data.encode() if stdin_data else None),
-                timeout=effective_timeout,
-            )
+                stdout, stderr = await asyncio.wait_for(
+                    process.communicate(input=stdin_data.encode() if stdin_data else None),
+                    timeout=effective_timeout,
+                )
+                output = stdout.decode("utf-8", errors="replace").strip()
+                err_output = stderr.decode("utf-8", errors="replace").strip()
+                return_code = process.returncode
 
-            output = stdout.decode("utf-8", errors="replace").strip()
-            err_output = stderr.decode("utf-8", errors="replace").strip()
+            except NotImplementedError:
+                # Windows SelectorEventLoop fallback: run via thread
+                import subprocess
+                def _sync_run():
+                    return subprocess.run(
+                        cmd,
+                        input=stdin_data.encode() if stdin_data else None,
+                        capture_output=True,
+                        timeout=effective_timeout,
+                    )
+                p_res = await asyncio.to_thread(_sync_run)
+                output = p_res.stdout.decode("utf-8", errors="replace").strip()
+                err_output = p_res.stderr.decode("utf-8", errors="replace").strip()
+                return_code = p_res.returncode
 
-            if process.returncode != 0:
-                logger.warning(f"WebCMD failed (exit {process.returncode}): {err_output or output}")
+            if return_code != 0:
+                logger.warning(f"WebCMD failed (exit {return_code}): {err_output or output}")
                 # Try to parse error JSON
                 try:
                     err_data = json.loads(output)

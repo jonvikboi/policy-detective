@@ -4,6 +4,14 @@ Policy Detective — FastAPI Backend Application
 Main entry point for the backend server.
 """
 
+import sys
+import asyncio
+if sys.platform == "win32":
+    try:
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    except Exception:
+        pass
+
 import logging
 from contextlib import asynccontextmanager
 
