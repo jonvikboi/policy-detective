@@ -132,6 +132,28 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
         </div>
       </div>
 
+      {/* Completion Banner */}
+      {isCompleted && (
+        <div className="glass-panel rounded-2xl p-5 border border-brand-500/40 bg-brand-500/10 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl shadow-brand-500/10 animate-fade-in">
+          <div className="flex items-center space-x-4">
+            <div className="w-10 h-10 rounded-xl bg-brand-500/20 border border-brand-500/40 flex items-center justify-center text-brand-400">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="text-base font-bold text-white">Investigation Complete!</h4>
+              <p className="text-xs text-slate-300">Differential evidence analysis and verdicts compiled.</p>
+            </div>
+          </div>
+          <button
+            onClick={onViewReport}
+            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-slate-950 font-bold text-sm flex items-center justify-center space-x-2 shadow-lg shadow-brand-500/25 transition-all hover:scale-[1.02] cursor-pointer"
+          >
+            <span>View Full Audit Report</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Main Grid: Stages Stepper + Live Console */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: Stages Stepper */}
@@ -166,9 +188,9 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
                         <Circle className="w-4 h-4 text-slate-600" />
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold">{stage.label}</p>
-                      <p className="text-[11px] text-slate-400 truncate">{stage.desc}</p>
+                    <div>
+                      <h4 className="text-xs font-semibold">{stage.label}</h4>
+                      <p className="text-[11px] text-slate-400 mt-0.5">{stage.desc}</p>
                     </div>
                   </div>
                 );
@@ -177,46 +199,39 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
           </div>
         </div>
 
-        {/* Right: Live Event Stream & Terminal */}
-        <div className="lg:col-span-7 space-y-3">
+        {/* Right: Live Terminal */}
+        <div className="lg:col-span-7">
           <div className="glass-panel rounded-2xl p-5 border border-slate-800 flex flex-col h-[520px]">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center space-x-2">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-800">
+              <div className="flex items-center space-x-2 text-xs font-mono text-slate-300">
                 <Terminal className="w-4 h-4 text-brand-400" />
-                <span className="text-sm font-semibold text-white">Agent Telemetry & Event Stream</span>
+                <span>Agent Telemetry & Event Stream</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setAutoScroll(!autoScroll)}
-                  className={`text-[11px] px-2 py-0.5 rounded border transition-colors ${
-                    autoScroll 
-                      ? 'bg-brand-500/10 border-brand-500/30 text-brand-400' 
-                      : 'bg-slate-900 border-slate-800 text-slate-500'
-                  }`}
-                >
-                  Auto-scroll: {autoScroll ? 'ON' : 'OFF'}
-                </button>
-              </div>
+              <button
+                onClick={() => setAutoScroll(!autoScroll)}
+                className={`text-[11px] font-mono px-2.5 py-1 rounded-md border ${
+                  autoScroll 
+                    ? 'bg-slate-800 border-slate-700 text-brand-400' 
+                    : 'bg-slate-900 border-slate-800 text-slate-500'
+                }`}
+              >
+                Auto-scroll: {autoScroll ? 'ON' : 'OFF'}
+              </button>
             </div>
 
-            {/* Terminal Logs */}
             <div 
               ref={terminalRef}
-              className="flex-1 overflow-y-auto font-mono text-xs p-3 space-y-2.5 bg-slate-950/80 rounded-xl mt-3 border border-slate-900/90 text-slate-300"
+              className="flex-1 overflow-y-auto font-mono text-xs space-y-3 p-3 bg-slate-950/80 rounded-xl border border-slate-900 mt-3 scrollbar-thin scrollbar-thumb-slate-800"
             >
               {events.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-slate-600 italic">
-                  Connecting to WebCMD agent event stream...
-                </div>
+                <div className="text-slate-600 italic">Waiting for agent events...</div>
               ) : (
-                events.map((ev, idx) => (
-                  <div key={idx} className="space-y-0.5 leading-relaxed">
-                    <div className="flex items-center space-x-2 text-[11px]">
-                      <span className="text-slate-500">
-                        {ev.timestamp ? new Date(ev.timestamp).toLocaleTimeString() : 'LIVE'}
-                      </span>
-                      <span className={`px-1.5 py-0.2 rounded text-[10px] uppercase font-bold ${
-                        ev.type === 'stage_change'
+                events.map((ev, i) => (
+                  <div key={i} className="space-y-1 animate-fade-in">
+                    <div className="flex items-center space-x-2 text-slate-500 text-[10px]">
+                      <span>{new Date(ev.timestamp).toLocaleTimeString()}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-wider ${
+                        ev.type === 'stage_change' 
                           ? 'bg-accent-blue/10 text-accent-blue border border-accent-blue/20'
                           : ev.type === 'policy_found'
                           ? 'bg-brand-500/10 text-brand-400 border border-brand-500/20'
@@ -242,9 +257,18 @@ export const InvestigationView: React.FC<InvestigationViewProps> = ({
               )}
 
               {isCompleted && (
-                <div className="pt-2 text-brand-400 font-bold border-t border-slate-800/80 flex items-center space-x-2">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Investigation complete. Final report compiled.</span>
+                <div className="pt-3 mt-2 text-brand-400 font-bold border-t border-slate-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-brand-500/10 p-3 rounded-xl border border-brand-500/30">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle2 className="w-4 h-4 text-brand-400" />
+                    <span className="text-white">Investigation complete. Final report compiled.</span>
+                  </div>
+                  <button
+                    onClick={onViewReport}
+                    className="px-4 py-1.5 rounded-lg bg-brand-500 hover:bg-brand-400 text-slate-950 font-bold text-xs flex items-center space-x-1.5 transition-all cursor-pointer shadow-md shadow-brand-500/20"
+                  >
+                    <span>View Report</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               )}
             </div>

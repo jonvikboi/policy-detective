@@ -59,11 +59,15 @@ export function App() {
               stage_details: data.stage_details || prev.stage_details,
               status: data.status,
             } : null);
-          } else if (eventType === 'done') {
+          } else if (eventType === 'done' || (eventType === 'stage_change' && (data.stage === 'completed' || data.message?.includes('complete')))) {
             try {
               const fullReport = await getScanReport(newScan.id);
               setReport(fullReport);
               setCurrentScan(fullReport.scan);
+              // Smoothly transition to the full report view
+              setTimeout(() => {
+                setActiveView('report');
+              }, 1200);
             } catch (err) {
               console.error('Failed to load final report:', err);
             }
