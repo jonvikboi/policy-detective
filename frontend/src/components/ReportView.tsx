@@ -33,7 +33,23 @@ export const ReportView: React.FC<ReportViewProps> = ({ report, onNewScan }) => 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPolicy, setSelectedPolicy] = useState<any | null>(null);
 
-  const { scan, policies, claims, verdicts, summary } = report;
+  const scan = report?.scan || { id: '', url: '', domain: 'target-site', status: 'completed', progress: 100, current_stage: 'completed', created_at: new Date().toISOString() };
+  const policies = report?.policies || [];
+  const claims = report?.claims || [];
+  const verdicts = report?.verdicts || [];
+  const summary = report?.summary || {
+    total_claims: claims.length,
+    consistent: 0,
+    potential_inconsistencies: 0,
+    strong_inconsistencies: 0,
+    unable_to_verify: 0,
+    test_failed: 0,
+    total_cookies_observed: 0,
+    third_party_cookies: 0,
+    total_network_requests: 0,
+    experiments_completed: 0,
+    policies_found: policies.length,
+  };
 
   // Verdict badge renderer
   const renderVerdictBadge = (type: VerdictType) => {

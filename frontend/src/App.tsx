@@ -146,11 +146,25 @@ export function App() {
           />
         )}
 
-        {activeView === 'report' && report && (
-          <ReportView
-            report={report}
-            onNewScan={handleNewScan}
-          />
+        {activeView === 'report' && (
+          report ? (
+            <ReportView
+              report={report}
+              onNewScan={handleNewScan}
+            />
+          ) : (
+            <div className="max-w-xl mx-auto px-4 py-24 text-center space-y-4">
+              <div className="w-10 h-10 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mx-auto" />
+              <h3 className="text-lg font-bold text-white">Loading Investigation Report...</h3>
+              <p className="text-sm text-slate-400">Fetching verified policy commitments and browser evidence.</p>
+              <button
+                onClick={handleNewScan}
+                className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:text-white"
+              >
+                Back to Home
+              </button>
+            </div>
+          )
         )}
       </main>
 
