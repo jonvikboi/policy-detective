@@ -1,9 +1,11 @@
 import { Scan, ScanReport, Experiment, Policy, PolicyClaim, Verdict } from '../types';
 
-const API_BASE = '/api';
+const BACKEND_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+const API_BASE = BACKEND_URL ? `${BACKEND_URL}/api` : '/api';
 
 export async function checkBackendHealth(): Promise<{ status: string; version: string; webcmd_binary: string }> {
-  const res = await fetch('/health');
+  const healthUrl = BACKEND_URL ? `${BACKEND_URL}/health` : '/health';
+  const res = await fetch(healthUrl);
   if (!res.ok) throw new Error('Backend is unreachable');
   return res.json();
 }
