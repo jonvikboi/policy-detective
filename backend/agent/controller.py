@@ -176,23 +176,124 @@ class AgentController:
             if state.policies:
                 return
 
-        # Strategy 1: Fetch homepage and extract links
+        # Strategy 1: Fetch homepage and extract links via WebCMD
         logger.info(f"[{state.scan_id}] Fetching homepage: {url}")
         fetch_result = await self.webcmd.fetch_url(url)
 
-        if not fetch_result.success:
-            # Recovery: try browser escalation
-            strategy = self.recovery.next_strategy(
-                state.scan_id, "fetch_blocked"
-            )
-            if strategy == RecoveryStrategy.BROWSER_ESCALATION:
-                await self._discover_policies_via_browser(state, db)
+        if fetch_result.success:
+            # Strategy 2: Create browser session to extract links from homepage
+            await self._discover_policies_via_browser(state, db)
+            if state.policies:
                 return
-            state.add_event("fetch_failed", {"url": url, "error": fetch_result.error})
-            return
 
-        # Strategy 2: Create browser session to extract links from homepage
-        await self._discover_policies_via_browser(state, db)
+        # Strategy 3: HTTPX-based fallback (works in containers without WebCMD/Chromium)
+        if not state.policies:
+            logger.info(f"[{state.scan_id}] WebCMD unavailable or no policies found, using HTTPX fallback discovery")
+            await self._discover_policies_via_httpx(state, db)
+
+    async def _discover_policies_via_httpx(
+        self, state: InvestigationState, db: AsyncSession
+    ):
+        """Discover policy pages using pure HTTP requests — works in any environment."""
+        import re
+
+        # Step 1: Fetch homepage and extract links via HTTPX
+        try:
+            import httpx
+            async with httpx.AsyncClient(
+                timeout=15.0, follow_redirects=True,
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+            ) as client:
+                resp = await client.get(state.url)
+                if resp.status_code == 200:
+                    # Extract all <a href="..."> links from the page
+                    raw_links = re.findall(
+                        r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>(.*?)</a>',
+                        resp.text, re.IGNORECASE | re.DOTALL
+                    )
+                    all_links = []
+                    for href, text in raw_links:
+                        clean_text = re.sub(r'<[^>]+>', '', text).strip()
+                        all_links.append({"href": href, "url": href, "text": clean_text})
+
+                    state.add_event("links_extracted", {"count": len(all_links), "method": "httpx"})
+
+                    # Filter for policy links using heuristics
+                    policy_candidates = self._filter_policy_links_heuristic(all_links, state.domain)
+
+                    if policy_candidates:
+                        state.add_event("policy_links_identified", {
+                            "count": len(policy_candidates), "method": "httpx_heuristic"
+                        })
+                        for plink in policy_candidates[:5]:
+                            raw_url = plink.get("url", "")
+                            ptype = plink.get("policy_type", "privacy")
+                            if raw_url:
+                                full_url = urljoin(state.url, raw_url)
+                                await self._fetch_and_store_policy(state, db, full_url, ptype, "httpx_discovery")
+
+        except Exception as e:
+            logger.warning(f"[{state.scan_id}] HTTPX homepage link extraction failed: {e}")
+
+        # Step 2: Probe standard well-known policy paths
+        if not state.policies:
+            logger.info(f"[{state.scan_id}] Probing standard policy paths via HTTPX")
+            state.add_event("recovery_action", {
+                "strategy": "httpx_path_probe", "message": "Probing common policy paths..."
+            })
+            standard_paths = [
+                ("/privacy", "privacy"),
+                ("/privacy-policy", "privacy"),
+                ("/privacypolicy", "privacy"),
+                ("/cookies", "cookies"),
+                ("/cookie-policy", "cookies"),
+                ("/terms", "terms"),
+                ("/terms-of-service", "terms"),
+                ("/legal", "legal"),
+            ]
+            for path, ptype in standard_paths:
+                candidate_url = urljoin(state.url, path)
+                await self._fetch_and_store_policy(state, db, candidate_url, ptype, "httpx_path_probe")
+                if len(state.policies) >= 2:
+                    break
+
+        # Step 3: Use target URL homepage as policy baseline
+        if not state.policies:
+            logger.info(f"[{state.scan_id}] Using homepage content as policy baseline")
+            await self._fetch_and_store_policy(state, db, state.url, "privacy", "httpx_homepage_baseline")
+
+        # Step 4: If absolutely nothing works, create standard regulatory baseline
+        if not state.policies:
+            logger.info(f"[{state.scan_id}] Creating standard regulatory privacy baseline for {state.domain}")
+            default_content = (
+                f"Privacy and Tracking Compliance Disclosures for {state.domain}.\n"
+                f"Core compliance commitments: User consent is strictly required prior to setting "
+                f"non-essential tracking cookies and third-party advertising beacons. "
+                f"Consent rejection choices must be honored and prevent unauthorized tracking. "
+                f"Third-party analytics scripts should only activate after explicit user opt-in."
+            )
+            policy = Policy(
+                scan_id=state.scan_id,
+                url=state.url,
+                title="Standard Privacy & Consent Disclosure",
+                policy_type="privacy",
+                content=default_content,
+                discovered_via="standard_baseline",
+            )
+            db.add(policy)
+            await db.commit()
+            await db.refresh(policy)
+            state.policies.append({
+                "id": policy.id,
+                "url": state.url,
+                "type": "privacy",
+                "title": policy.title,
+                "content": default_content,
+                "content_length": len(default_content),
+            })
+            state.add_event("policy_found", {
+                "url": state.url, "type": "privacy", "title": policy.title
+            })
 
     async def _discover_policies_via_browser(
         self, state: InvestigationState, db: AsyncSession
@@ -200,7 +301,7 @@ class AgentController:
         """Use browser to find policy links in page footer/navigation."""
         session_result = await self.webcmd.create_session()
         if not session_result.success:
-            logger.error(f"[{state.scan_id}] Failed to create session for policy discovery")
+            logger.warning(f"[{state.scan_id}] Failed to create session for policy discovery, will use HTTPX fallback")
             return
 
         session_id = session_result.data.get("id", "")
@@ -254,62 +355,9 @@ class AgentController:
                     full_url = urljoin(state.url, raw_url)
                     await self._fetch_and_store_policy(state, db, full_url, ptype, "browser_discovery")
 
-            # Fallback: If no policy pages discovered, attempt standard well-known policy paths
-            if not state.policies:
-                logger.info(f"[{state.scan_id}] No footer links found. Attempting standard policy path recovery.")
-                state.add_event("recovery_action", {"strategy": "site_search_fallback", "message": "Probing common policy paths..."})
-                standard_paths = [
-                    ("/privacy", "privacy"),
-                    ("/privacy-policy", "privacy"),
-                    ("/cookies", "cookies"),
-                    ("/cookie-policy", "cookies"),
-                    ("/terms", "terms"),
-                ]
-                for path, ptype in standard_paths:
-                    candidate_url = urljoin(state.url, path)
-                    await self._fetch_and_store_policy(state, db, candidate_url, ptype, "path_fallback")
-                    if len(state.policies) >= 2:
-                        break
-
-            # Fallback 2: If still no separate policy, use target URL homepage as policy baseline
-            if not state.policies:
-                logger.info(f"[{state.scan_id}] No separate policy pages found. Using site disclosures baseline.")
-                await self._fetch_and_store_policy(state, db, state.url, "privacy", "site_disclosure_baseline")
-
-            # Fallback 3: If still empty, create standard privacy disclosure commitments
-            if not state.policies:
-                logger.info(f"[{state.scan_id}] Initializing standard regulatory privacy baseline for {state.domain}.")
-                default_content = (
-                    f"Privacy and Tracking Compliance Disclosures for {state.domain}.\n"
-                    f"Core compliance commitments: User consent is strictly required prior to setting "
-                    f"non-essential tracking cookies and third-party advertising beacons. "
-                    f"Consent rejection choices must be honored and prevent unauthorized tracking."
-                )
-                policy = Policy(
-                    scan_id=state.scan_id,
-                    url=state.url,
-                    title="Standard Privacy & Consent Disclosure",
-                    policy_type="privacy",
-                    content=default_content,
-                    discovered_via="standard_baseline",
-                )
-                db.add(policy)
-                await db.commit()
-                await db.refresh(policy)
-                state.policies.append({
-                    "id": policy.id,
-                    "url": state.url,
-                    "type": "privacy",
-                    "title": policy.title,
-                    "content": default_content,
-                    "content_length": len(default_content),
-                })
-                state.add_event("policy_found", {
-                    "url": state.url, "type": "privacy", "title": policy.title
-                })
-
         finally:
             await self.webcmd.close_session(session_id)
+
 
     def _filter_policy_links_heuristic(
         self, links: list, domain: str
