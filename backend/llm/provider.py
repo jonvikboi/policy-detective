@@ -208,12 +208,12 @@ IMPORTANT RULES:
 Return a JSON object."""
 
         # Concise evidence summary to stay within token limits
-        pre_cookies = [c.get("name", "") if isinstance(c, dict) else str(c) for c in pre_consent_evidence.get("cookies", [])[:8]]
-        pre_trackers = [str(d) for d in pre_consent_evidence.get("third_party_domains", [])[:8]]
-        accept_cookies = [c.get("name", "") if isinstance(c, dict) else str(c) for c in accept_evidence.get("cookies", [])[:8]]
-        accept_trackers = [str(d) for d in accept_evidence.get("third_party_domains", [])[:8]]
-        reject_cookies = [c.get("name", "") if isinstance(c, dict) else str(c) for c in reject_evidence.get("cookies", [])[:8]]
-        reject_trackers = [str(d) for d in reject_evidence.get("third_party_domains", [])[:8]]
+        pre_cookies = [str(c.get("name", "") or "") for c in pre_consent_evidence.get("cookies", [])[:8] if isinstance(c, dict)]
+        pre_trackers = [str(d) for d in pre_consent_evidence.get("third_party_domains", [])[:8] if d is not None]
+        accept_cookies = [str(c.get("name", "") or "") for c in accept_evidence.get("cookies", [])[:8] if isinstance(c, dict)]
+        accept_trackers = [str(d) for d in accept_evidence.get("third_party_domains", [])[:8] if d is not None]
+        reject_cookies = [str(c.get("name", "") or "") for c in reject_evidence.get("cookies", [])[:8] if isinstance(c, dict)]
+        reject_trackers = [str(d) for d in reject_evidence.get("third_party_domains", [])[:8] if d is not None]
 
         user_prompt = f"""Claim: {claim.get('claim_text', '')} (Category: {claim.get('category', '')})
 
