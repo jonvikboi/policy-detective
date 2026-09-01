@@ -481,7 +481,13 @@ class AgentController:
             # Extract claims via LLM
             raw_claims = await self.llm.extract_claims(policy_content, policy_type)
 
+            existing_claim_texts = {c.get("claim_text", "").strip().lower() for c in state.claims}
             for rc in raw_claims:
+                claim_text = rc.get("claim_text", "Privacy commitment").strip()
+                if not claim_text or claim_text.lower() in existing_claim_texts:
+                    continue
+                existing_claim_texts.add(claim_text.lower())
+
                 try:
                     category_str = rc.get("category", "cookies")
                     try:
@@ -495,14 +501,16 @@ class AgentController:
                     except ValueError:
                         test_enum = Testability.AUTOMATABLE
 
+                    exp_beh = rc.get("expected_behavior", "Consent required prior to non-essential tracking activation.")
+
                     claim = PolicyClaim(
                         scan_id=state.scan_id,
                         policy_id=policy_id,
                         category=cat_enum,
-                        claim_text=rc.get("claim_text", "Privacy commitment"),
+                        claim_text=claim_text,
                         testability=test_enum,
                         test_type=rc.get("test_type", "privacy_audit"),
-                        expected_behavior=rc.get("expected_behavior", {}),
+                        expected_behavior=exp_beh,
                         source_section=rc.get("source_section", "General Disclosures"),
                     )
                     db.add(claim)
@@ -516,13 +524,18 @@ class AgentController:
                         "testability": test_enum.value,
                         "expected_behavior": claim.expected_behavior,
                     })
+                    if len(state.claims) >= 6:
+                        break
                 except Exception as e:
                     logger.warning(f"[{state.scan_id}] Failed to store claim: {e}", exc_info=True)
+                    await db.rollback()
 
             state.add_event("claims_extracted", {
                 "policy_id": policy_id,
-                "count": len(raw_claims),
+                "count": len(state.claims),
             })
+            if len(state.claims) >= 6:
+                break
 
         # Ensure baseline claims exist if fewer than 5 claims were extracted
         if len(state.claims) < 5:
@@ -962,17 +975,23 @@ class AgentController:
 
             except Exception as e:
                 logger.error(f"[{state.scan_id}] Verdict generation failed for claim {claim_id}: {e}")
-                verdict = Verdict(
-                    scan_id=state.scan_id,
-                    claim_id=claim_id,
-                    verdict_type=VerdictType.TEST_FAILED,
-                    confidence=0.0,
-                    confidence_reasoning=f"Verdict generation failed: {e}",
-                    explanation="An error occurred while generating the verdict.",
-                    evidence_summary={},
-                )
-                db.add(verdict)
-                await db.commit()
+                await db.rollback()
+                try:
+                    verdict = Verdict(
+                        scan_id=state.scan_id,
+                        claim_id=claim_id,
+                        verdict_type=VerdictType.TEST_FAILED,
+                        confidence=0.0,
+                        confidence_reasoning=f"Verdict generation failed: {e}",
+                        explanation="An error occurred while generating the verdict.",
+                        expected_behavior="Non-essential tracking requires explicit user consent.",
+                        observed_behavior="Failed to evaluate technical observation.",
+                        evidence_summary={},
+                    )
+                    db.add(verdict)
+                    await db.commit()
+                except Exception:
+                    await db.rollback()
 
     # --- Workflow Learning ---
 
