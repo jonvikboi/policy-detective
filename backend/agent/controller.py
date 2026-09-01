@@ -630,8 +630,12 @@ class AgentController:
                 try:
                     import httpx
                     import re
-                    async with httpx.AsyncClient(timeout=12.0, follow_redirects=True, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}) as client:
+                    async with httpx.AsyncClient(
+                        timeout=15.0, follow_redirects=True,
+                        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+                    ) as client:
                         resp = await client.get(state.url)
+                        # Capture cookies from all redirect hops + final response
                         for k, v in resp.cookies.items():
                             raw_cookies.append({
                                 "name": k,
@@ -641,15 +645,56 @@ class AgentController:
                                 "httpOnly": False,
                                 "sameSite": "Lax",
                             })
+                        # Also capture Set-Cookie headers for more complete evidence
+                        for cookie_header in resp.headers.get_list("set-cookie"):
+                            parts = cookie_header.split(";")
+                            if parts:
+                                name_val = parts[0].strip().split("=", 1)
+                                if len(name_val) >= 1 and name_val[0]:
+                                    cookie_name = name_val[0].strip()
+                                    cookie_domain = state.domain
+                                    cookie_secure = False
+                                    cookie_httponly = False
+                                    cookie_samesite = "Lax"
+                                    for part in parts[1:]:
+                                        p = part.strip().lower()
+                                        if p.startswith("domain="):
+                                            cookie_domain = p.split("=", 1)[1].strip().lstrip(".")
+                                        elif p == "secure":
+                                            cookie_secure = True
+                                        elif p == "httponly":
+                                            cookie_httponly = True
+                                        elif p.startswith("samesite="):
+                                            cookie_samesite = p.split("=", 1)[1].strip()
+                                    # Avoid duplicates
+                                    if not any(c["name"] == cookie_name for c in raw_cookies):
+                                        raw_cookies.append({
+                                            "name": cookie_name,
+                                            "domain": cookie_domain,
+                                            "path": "/",
+                                            "secure": cookie_secure,
+                                            "httpOnly": cookie_httponly,
+                                            "sameSite": cookie_samesite,
+                                        })
+                        # Extract resource URLs from HTML
                         script_srcs = re.findall(r'<script[^>]+src=["\']([^"\']+)["\']', resp.text, re.IGNORECASE)
                         img_srcs = re.findall(r'<img[^>]+src=["\']([^"\']+)["\']', resp.text, re.IGNORECASE)
                         link_srcs = re.findall(r'<link[^>]+href=["\']([^"\']+)["\']', resp.text, re.IGNORECASE)
-                        for src in (script_srcs + img_srcs + link_srcs)[:60]:
+                        iframe_srcs = re.findall(r'<iframe[^>]+src=["\']([^"\']+)["\']', resp.text, re.IGNORECASE)
+                        all_srcs = script_srcs + img_srcs + link_srcs + iframe_srcs
+                        for src in all_srcs[:80]:
                             full_req_url = urljoin(state.url, src)
+                            res_type = "script"
+                            if src in img_srcs:
+                                res_type = "image"
+                            elif src in link_srcs:
+                                res_type = "stylesheet"
+                            elif src in iframe_srcs:
+                                res_type = "document"
                             raw_requests.append({
                                 "url": full_req_url,
                                 "method": "GET",
-                                "resourceType": "script" if src in script_srcs else "image",
+                                "resourceType": res_type,
                             })
                 except Exception as e:
                     logger.warning(f"HTTP audit fallback notice: {e}")
@@ -814,6 +859,12 @@ class AgentController:
                     evidence_summary={},
                 )
                 db.add(verdict)
+                await db.commit()
+                state.verdicts.append({
+                    "claim_id": claim_id,
+                    "verdict_type": VerdictType.UNABLE_TO_VERIFY.value,
+                    "confidence": 0.0,
+                })
                 continue
 
             try:
@@ -872,6 +923,7 @@ class AgentController:
                     evidence_summary={},
                 )
                 db.add(verdict)
+                await db.commit()
 
     # --- Workflow Learning ---
 
