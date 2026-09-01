@@ -59,15 +59,24 @@ export function App() {
               stage_details: data.stage_details || prev.stage_details,
               status: data.status,
             } : null);
+
+            // Auto-load report if progress is 100% or status is completed
+            if (data.status === 'completed' || data.progress === 100) {
+              try {
+                const fullReport = await getScanReport(newScan.id);
+                setReport(fullReport);
+                setCurrentScan(fullReport.scan);
+                setActiveView('report');
+              } catch (err) {
+                console.error('Failed to load final report on progress 100:', err);
+              }
+            }
           } else if (eventType === 'done' || (eventType === 'stage_change' && (data.stage === 'completed' || data.message?.includes('complete')))) {
             try {
               const fullReport = await getScanReport(newScan.id);
               setReport(fullReport);
               setCurrentScan(fullReport.scan);
-              // Smoothly transition to the full report view
-              setTimeout(() => {
-                setActiveView('report');
-              }, 1200);
+              setActiveView('report');
             } catch (err) {
               console.error('Failed to load final report:', err);
             }
