@@ -24,18 +24,25 @@ logger = logging.getLogger(__name__)
 
 KNOWN_ANALYTICS: set[str] = {
     "google-analytics.com", "analytics.google.com", "www.google-analytics.com",
-    "ssl.google-analytics.com",
+    "ssl.google-analytics.com", "stats.g.doubleclick.net",
     "hotjar.com", "static.hotjar.com", "script.hotjar.com",
     "mixpanel.com", "api.mixpanel.com", "cdn.mxpnl.com",
     "segment.com", "cdn.segment.com", "api.segment.io",
     "amplitude.com", "api.amplitude.com", "cdn.amplitude.com",
     "heap.io", "heapanalytics.com", "cdn.heapanalytics.com",
     "plausible.io", "matomo.cloud",
-    "clarity.ms", "www.clarity.ms",
+    "clarity.ms", "www.clarity.ms", "c.clarity.ms",
     "fullstory.com", "rs.fullstory.com",
-    "mouseflow.com",
+    "mouseflow.com", "go-mpulse.net", "s.go-mpulse.net", "s2.go-mpulse.net",
     "newrelic.com", "js-agent.newrelic.com", "bam.nr-data.net",
-    "sentry.io",
+    "sentry.io", "browser.sentry-cdn.com",
+    "moengage.com", "cdn.moengage.com", "api.moengage.com",
+    "clevertap.com", "wzrk.clevertap.com",
+    "branch.io", "app.link", "onelink.me", "myntra.onelink.me",
+    "appsflyer.com", "app.appsflyer.com",
+    "adjust.com", "app.adjust.com",
+    "singular.net", "measurementapi.com", "335741.measurementapi.com",
+    "apsalar.com", "ad.apsalar.com", "galleri5.com", "studio.galleri5.com",
 }
 
 KNOWN_ADVERTISING: set[str] = {
@@ -43,26 +50,28 @@ KNOWN_ADVERTISING: set[str] = {
     "googleads.g.doubleclick.net", "www.googleadservices.com",
     "googletagmanager.com", "www.googletagmanager.com",
     "googlesyndication.com",
-    "facebook.net", "connect.facebook.net",
+    "facebook.net", "connect.facebook.net", "pixel.facebook.com",
     "ads.linkedin.com", "px.ads.linkedin.com",
     "ads.twitter.com", "analytics.twitter.com", "t.co",
     "adsymptotic.com",
-    "criteo.com", "static.criteo.net",
+    "criteo.com", "static.criteo.net", "dynamic.criteo.com",
     "taboola.com", "cdn.taboola.com",
-    "outbrain.com",
-    "amazon-adsystem.com",
+    "outbrain.com", "tr.outbrain.com",
+    "amazon-adsystem.com", "aax.amazon-adsystem.com",
     "adnxs.com", "ib.adnxs.com",
-    "rubiconproject.com",
-    "pubmatic.com",
+    "rubiconproject.com", "fastlane.rubiconproject.com",
+    "pubmatic.com", "image2.pubmatic.com",
     "casalemedia.com",
     "bidswitch.net",
-    "demdex.net",
-    "krxd.net",
-    "bluekai.com",
-    "quantserve.com",
-    "scorecardresearch.com",
+    "demdex.net", "dpm.demdex.net",
+    "krxd.net", "cdn.krxd.net",
+    "bluekai.com", "tags.bluekai.com",
+    "quantserve.com", "pixel.quantserve.com",
+    "scorecardresearch.com", "sb.scorecardresearch.com",
     "rlcdn.com",
     "exelator.com",
+    "tiktok.com", "analytics.tiktok.com",
+    "bing.com", "bat.bing.com",
 }
 
 KNOWN_SOCIAL: set[str] = {
@@ -82,7 +91,8 @@ KNOWN_CDN: set[str] = {
     "maxcdn.bootstrapcdn.com", "stackpath.bootstrapcdn.com",
     "cdn.cloudflare.com",
     "use.fontawesome.com", "kit.fontawesome.com",
-    "code.jquery.com",
+    "code.jquery.com", "myntassets.com", "assets.myntassets.com",
+    "cdn.myntassets.com", "constant.myntassets.com",
 }
 
 KNOWN_FUNCTIONAL: set[str] = {
@@ -99,6 +109,7 @@ KNOWN_PAYMENT: set[str] = {
     "www.paypal.com", "www.paypalobjects.com",
     "checkout.shopify.com",
     "js.braintreegateway.com",
+    "getsimpl.com", "api.razorpay.com", "checkout.razorpay.com",
 }
 
 KNOWN_AUTH: set[str] = {
@@ -115,6 +126,8 @@ ANALYTICS_COOKIE_PATTERNS: list[str] = [
     "mp_", "ajs_",
     "_clck", "_clsk",
     "_fbp", "_fbc",
+    "utm_", "utrid", "_mxab_", "_pv", "ilgim", "_d_id",
+    "moe_", "wzrk_", "ct_", "af_", "_branch_",
 ]
 
 ADVERTISING_COOKIE_PATTERNS: list[str] = [
@@ -124,13 +137,14 @@ ADVERTISING_COOKIE_PATTERNS: list[str] = [
     "NID", "ANID", "1P_JAR", "CONSENT",
     "_gcl_",
     "test_cookie",
+    "_abck", "bm_sz", "ak_bmsc",  # Bot/telemetry trackers
 ]
 
 FUNCTIONAL_COOKIE_PATTERNS: list[str] = [
     "CookieConsent", "OptanonConsent", "OptanonAlertBoxClosed",
     "cookieconsent_status", "euconsent",
-    "JSESSIONID", "PHPSESSID", "session_id",
-    "csrf", "XSRF-TOKEN",
+    "JSESSIONID", "PHPSESSID", "session_id", "sessionid",
+    "csrf", "XSRF-TOKEN", "csrf_token",
     "__cfduid", "cf_clearance",
 ]
 
