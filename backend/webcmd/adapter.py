@@ -75,7 +75,7 @@ class WebCMDAdapter:
             cmd = ["cmd.exe", "/c", self.binary] + args
 
         effective_timeout = timeout or self.timeout
-        cmd_str = " ".join(cmd)
+        cmd_str = " ".join(str(c) for c in cmd if c is not None)
         logger.info(f"WebCMD: {cmd_str}")
 
         try:
@@ -158,6 +158,8 @@ class WebCMDAdapter:
 
     async def close_session(self, session_id: str) -> WebCMDResult:
         """Close a browser session and release resources."""
+        if not session_id:
+            return WebCMDResult(success=True, data={"message": "No session to close"})
         result = await self._run_command(
             ["--profile", self.profile, "session", "close", session_id]
         )
