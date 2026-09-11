@@ -1,0 +1,50 @@
+# Git
+.git
+.gitignore
+
+# Environment and sensitive keys
+.env
+.env.*
+!.env.example
+
+# Antigravity & agents
+.agents
+
+# Python cache & virtual environments
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+
+# Node & Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/src/
+frontend/public/
+frontend/index.html
+frontend/vite.config.ts
+frontend/tsconfig*.json
+frontend/tailwind.config.js
+frontend/postcss.config.js
+frontend/eslint.config.js
+
+# Local test databases & scratch files
+*.db
+*.sqlite*
+policy_detective.db
+scratch/
+docs/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

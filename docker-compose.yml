@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: policy-detective-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-qwen/qwen3.6-27b}
+      - LLM_PROVIDER=groq
+      - DATABASE_TYPE=mongodb
+      - MONGODB_URI=mongodb://mongo:27017
+      - MONGODB_DB_NAME=policy_detective
+      - WEBCMD_BINARY=webcmd
+      - WEBCMD_PROFILE=default
+      - WEBCMD_TIMEOUT=60
+      - MAX_CONCURRENT_SCANS=3
+      - SCAN_TIMEOUT_MINUTES=15
+    depends_on:
+      - mongo
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7.0
+    container_name: policy-detective-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
