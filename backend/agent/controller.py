@@ -38,7 +38,7 @@ from backend.models.database import (
     Scan, Policy, PolicyClaim, Experiment, CookieEvidence,
     NetworkEvidence, Verdict, ScanEvent,
     ScanStatus, ExperimentState, VerdictType, ClaimCategory,
-    Testability, TrackerCategory,
+    Testability, TrackerCategory, new_id,
 )
 from backend.webcmd.adapter import WebCMDAdapter
 
@@ -630,13 +630,17 @@ class AgentController:
     ):
         """Run a single controlled browser experiment."""
         # Create experiment record
+        exp_id = new_id()
         experiment = Experiment(
+            id=exp_id,
             scan_id=state.scan_id,
             state=experiment_state,
             status="running",
             started_at=datetime.now(timezone.utc),
         )
         db.add(experiment)
+        await db.commit()
+        await db.refresh(experiment)
         session_id = None
         try:
             # Create fresh browser session (isolation!)
@@ -835,6 +839,7 @@ class AgentController:
                     cat_enum = TrackerCategory.UNKNOWN
 
                 cookie_ev = CookieEvidence(
+                    id=new_id(),
                     experiment_id=experiment.id,
                     name=nc["name"],
                     domain=nc["domain"],
@@ -857,6 +862,7 @@ class AgentController:
                     cat_enum = TrackerCategory.UNKNOWN
 
                 network_ev = NetworkEvidence(
+                    id=new_id(),
                     experiment_id=experiment.id,
                     url=nr["url"],
                     domain=nr["domain"],
@@ -886,13 +892,22 @@ class AgentController:
             })
 
         except Exception as e:
-            experiment.status = "failed"
-            experiment.error = str(e)
-            experiment.completed_at = datetime.now(timezone.utc)
-            await db.commit()
-            logger.error(f"[{state.scan_id}] Experiment {experiment_state.value} failed: {e}")
+            logger.error(f"[{state.scan_id}] Experiment {experiment_state.value} failed: {e}", exc_info=True)
+            await db.rollback()
+            try:
+                experiment.status = "failed"
+                experiment.error = str(e)
+                experiment.completed_at = datetime.now(timezone.utc)
+                db.add(experiment)
+                await db.commit()
+            except Exception:
+                await db.rollback()
         finally:
-            await self.webcmd.close_session(session_id)
+            if session_id:
+                try:
+                    await self.webcmd.close_session(session_id)
+                except Exception:
+                    pass
             state.sessions.pop(experiment_state.value, None)
 
     # --- Phase 4: Verdict Generation ---
@@ -909,6 +924,7 @@ class AgentController:
             if claim_info.get("testability") == "not_testable":
                 # Skip non-testable claims
                 verdict = Verdict(
+                    id=new_id(),
                     scan_id=state.scan_id,
                     claim_id=claim_id,
                     verdict_type=VerdictType.UNABLE_TO_VERIFY,
@@ -948,6 +964,7 @@ class AgentController:
                 obs_behavior = verdict_data.get("observed_behavior") or "Observed technical tracking behavior across pre-consent, accept-all, and reject-all experiment states."
 
                 verdict = Verdict(
+                    id=new_id(),
                     scan_id=state.scan_id,
                     claim_id=claim_id,
                     verdict_type=verdict_type,
@@ -978,6 +995,7 @@ class AgentController:
                 await db.rollback()
                 try:
                     verdict = Verdict(
+                        id=new_id(),
                         scan_id=state.scan_id,
                         claim_id=claim_id,
                         verdict_type=VerdictType.TEST_FAILED,
@@ -1038,6 +1056,7 @@ class AgentController:
     ):
         """Store a scan event for frontend consumption."""
         event = ScanEvent(
+            id=new_id(),
             scan_id=scan_id,
             event_type=event_type,
             data=data,
